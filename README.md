@@ -6,30 +6,25 @@
 
 ### Repo Structure
 
-> ~~~c++
+~~~bash
+tree -d -L 2  # only display directories with maximum depth of 2
+~~~
+
+> ~~~
 > .
 > ├── Computer Vision
 > │   └── Histogram Equalization Algorithm
-> │       ├── demo.ipynb
-> │       ├── hist_eql_alg.py
-> │       ├── images
-> │       │   ├── Capture.PNG
-> │       │   ├── face1.bmp
-> │       │   ├── face2.bmp
-> │       │   ├── face3.bmp
-> │       │   ├── face4.bmp
-> │       │   ├── face5.bmp
-> │       │   ├── face6.bmp
-> │       │   └── face7.bmp
-> │       ├── main.py
-> │       └── README.md
 > ├── Machine Learning
-> │   └── Principle Component Analysis
-> ├── README.md
+> │   ├── GCN - Graph Concolutional Network
+> │   ├── PCA - Principle Component Analysis
+> │   ├── QL - Q Learning
+> │   └── SVM - Support Vector Machine
 > └── Sorting Algorithms
 >     ├── Mergesort
->     │   └── main.py
 >     └── Quicksort
->         └── main.py
 > ~~~
+
+
+
+
 
