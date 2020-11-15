@@ -58,4 +58,12 @@ class PCA:
         """ Project the original dataset """
         x_ = np.matmul(x_, self.pc[:,:k])
         return x_
+    
+    def inverse_transform(self, z):
+        """
+            z - compressed data: NxK matrix (N samples, K dimensions)
+        """
+        k = z.shape[1]
+        return np.matmul(z, np.transpose(self.pc[:,:k]))
+    
 
