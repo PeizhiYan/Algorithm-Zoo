@@ -40,6 +40,7 @@ class PCA:
             """ Project the original dataset """
             x_ = np.matmul(x_, self.pc[:,:k]) 
         else:
+        	# WARNING: not working well!!
             """ Construct the matrix y_ """
             y_ = x_ / np.sqrt(self.N-1)
             """ Singular Value Decomposition (SVD) """
@@ -62,4 +63,13 @@ class PCA:
         """ Project the original dataset """
         x_ = np.matmul(x_, self.pc[:,:k])
         return x_
+    
+    def inverse_transform(self, z):
+        """
+            z - compressed data: NxK matrix (N samples, K dimensions)
+        """
+        k = z.shape[1]
+        return np.matmul(z, np.transpose(self.pc[:,:k]))+self.mu
+        #return np.matmul(z, np.linalg.inv(self.pc)[:k,:])+self.mu
+
 
