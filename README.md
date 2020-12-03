@@ -13,10 +13,9 @@ tree -d -L 2  # only display directories with maximum depth of 2
 > ~~~
 > .
 > ├── Computer Vision
+> │   ├── Delauany Trianglization Image Morphing
 > │   ├── Histogram Equalization Algorithm
 > │   └── PCA Image Compression
-> ├── Linear Algebra
-> │   └── Jacobi Method - Find Eigenvectors and Eigenvalues
 > ├── Machine Learning
 > │   ├── GAN - Generative Adversial network Vanilla Version
 > │   ├── GCN - Graph Concolutional Network
@@ -24,6 +23,9 @@ tree -d -L 2  # only display directories with maximum depth of 2
 > │   ├── QL - Q Learning
 > │   ├── SVD - Singular Value Decomposition
 > │   └── SVM - Support Vector Machine
+> ├── Mathematics
+> │   ├── DFT - Discrete Fourier Transform
+> │   └── Jacobi Method - Find Eigenvectors and Eigenvalues
 > └── Sorting Algorithms
 >     ├── Mergesort
 >     └── Quicksort
