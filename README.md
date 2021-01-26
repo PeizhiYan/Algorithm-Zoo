@@ -13,6 +13,7 @@ tree -d -L 2  # only display directories with maximum depth of 2
 > ~~~
 > .
 > ├── Computer Vision
+> │   ├── DCT - Discrete Cosine Transform
 > │   ├── Delauany Trianglization Image Morphing
 > │   ├── Histogram Equalization Algorithm
 > │   └── PCA Image Compression
