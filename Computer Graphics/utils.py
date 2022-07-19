@@ -3,7 +3,28 @@ Some utility functions
 """
 import open3d as o3d
 import numpy as np
-import pytorch3d
+
+# Pytorch 1.9
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.utils
+import torch.distributions
+
+# Pytorch3d
+from pytorch3d.structures import Meshes
+from pytorch3d.renderer import (
+    look_at_view_transform,
+    FoVPerspectiveCameras,
+    PointLights,
+    RasterizationSettings,
+    MeshRenderer,
+    MeshRasterizer,
+    SoftPhongShader,
+    TexturesVertex,
+    blending
+)
+
 
 def o3d_form_mesh(V, T, F, smoothing=False):
     """
@@ -43,6 +64,54 @@ def o3d_render(mesh, width=512, height=512, normal=False):
     return np.asarray(image), np.asarray(depth)
 
 
+def create_pytorch3d_renderer(device, radius=3.7, elevation=0, azimuth=180, fov=40.0, width=512, lights=None):
+    # render the tri-mesh using pytorch3d
+    # Initialize a camera.
+    # With world coordinates +Y up, +X left and +Z in, the front of the cow is facing the -Z direction. 
+    # So we move the camera by 180 in the azimuth direction so it is facing the front of the cow. 
+    R, T = look_at_view_transform(radius, elevation, azimuth) 
+    cameras = FoVPerspectiveCameras(device=device, R=R, T=T, fov=fov)
+    # Define the settings for rasterization and shading. Here we set the output image to be of size
+    # 512x512. As we are rendering images for visualization purposes only we will set faces_per_pixel=1
+    # and blur_radius=0.0. We also set bin_size and max_faces_per_bin to None which ensure that 
+    # the faster coarse-to-fine rasterization method is used. Refer to rasterize_meshes.py for 
+    # explanations of these parameters. Refer to docs/notes/renderer.md for an explanation of 
+    # the difference between naive and coarse-to-fine rasterization. 
+    raster_settings = RasterizationSettings(
+        image_size=width, 
+        blur_radius=0.0, 
+        faces_per_pixel=1, 
+    )
+    if lights is None:
+        # Place a point light in front of the object. As mentioned above, the front of the cow is facing the 
+        # -z direction. 
+        lights = PointLights(device=device, location=[[0.0, 0.0, -1e5]], ambient_color=[[0, 0, 0]],
+                         specular_color=[[0., 0., 0.]], diffuse_color=[[1., 1., 1.]])
+    # Create a Phong renderer by composing a rasterizer and a shader. The textured Phong shader will 
+    # interpolate the texture uv coordinates for each vertex, sample from a texture image and 
+    # apply the Phong lighting model
+    renderer = MeshRenderer(
+        rasterizer=MeshRasterizer(
+            cameras=cameras, 
+            raster_settings=raster_settings
+        ),
+        shader=SoftPhongShader(
+            device=device, 
+            cameras=cameras,
+            lights=lights
+        )
+    )
+    return renderer
+
+
+def pytorch3d_mesh(device, V, T, F):
+    shape = torch.from_numpy(V).to(device)[None]
+    color = TexturesVertex(torch.from_numpy(T).to(device)[None])
+    tri = torch.from_numpy(F).to(device)[None]
+    mesh = Meshes(shape, tri.repeat(1, 1, 1), color)
+    return mesh
+
+
 def load_obj(path):
     """
     Load mesh from .obj file
@@ -63,7 +132,7 @@ def load_obj(path):
                     F.append(x)
                 if arr[0] in ['t', 'T']:
                     T.append(x)
-    return np.array(V), np.array(T), np.array(F)-1
+    return np.array(V, dtype=np.float32), np.array(T, dtype=np.float32), np.array(F, dtype=np.float32)-1
     
     
 def save_mesh_as_obj(mesh, path):
