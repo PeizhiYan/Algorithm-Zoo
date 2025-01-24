@@ -194,7 +194,8 @@ class DecoderBlock(nn.Module):
 
 class Transformer(nn.Module):
     """Transformer Network"""
-    def __init__(self, dim=256, num_heads=8, num_blocks=6, hidden_dim=512, max_length=1000):
+    def __init__(self, dim=256, num_heads=8, num_blocks=6, hidden_dim=512, 
+                       max_length=1000, vocabulary_size=5000):
         """
         - dim: the embedded token dimension
         - num_heads: the number of attention heads
@@ -203,18 +204,28 @@ class Transformer(nn.Module):
         - max_length: the maximum sequence length (number of tokens)
         """
         super(Transformer, self).__init__()
+        # register hyperparameters
         self.dim = dim
         self.num_heads = num_heads
         self.num_blocks = num_blocks
         self.max_length = max_length
+        self.vocabulary_size = vocabulary_size
         
+        # positional encoding module
         self.positional_encoding = PositionalEncoding(max_length, dim)
+
+        # transformer encoder blocks
         self.encoder_blocks = nn.ModuleList(
             [EncoderBlock(dim=dim, num_heads=num_heads, hidden_dim=hidden_dim) for _ in range(num_blocks)]
         )
+
+        # transformer decoder blocks
         self.decoder_blocks = nn.ModuleList(
             [DecoderBlock(dim=dim, num_heads=num_heads, hidden_dim=hidden_dim) for _ in range(num_blocks)]
         )
+
+        # output layer for token generation
+        self.output_layer = nn.Linear(dim, self.vocabulary_size, bias=True)
 
     def encode(self, X):
         """

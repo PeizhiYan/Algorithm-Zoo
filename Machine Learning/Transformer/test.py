@@ -21,6 +21,7 @@ def main():
     x = torch.randn([BATCH_SIZE, 100, DIMENSION]).to(device)
     y = torch.randn([BATCH_SIZE, 200, DIMENSION]).to(device)
     mask_2d = generate_mask(mask=torch.ones([BATCH_SIZE, 200], dtype=torch.uint8))
+    mask = torch.ones([BATCH_SIZE, 200], dtype=torch.uint8)
     # x = torch.zeros([BATCH_SIZE, 200, DIMENSION]).to(device)
 
     #print(np.sin(0))
@@ -53,7 +54,7 @@ def main():
                               hidden_dim=HIDDEN_DIM, max_length=MAX_LENGTH)
 
     Z = transformer.encode(X=x)
-    Z = transformer.decode(Y=y, Z=Z, mask_2d=mask_2d)
+    Z = transformer.decode(Y=y, Z=Z, mask=mask)
     with torch.no_grad():
         plt.imshow(Z[0])
         plt.show()

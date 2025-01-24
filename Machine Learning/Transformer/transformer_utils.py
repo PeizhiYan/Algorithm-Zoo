@@ -59,3 +59,70 @@ def generate_mask(mask):
         mask_2d[b, :, zero_indices] = 0  # mask out columns
     return mask_2d
 
+class SimpleTokenizer:
+    """
+    Each character will be converted to a token
+    """
+    def __init__(self, texts : list, max_length : int = 1000):
+        # - texts: list of strings in the entire corpus
+        # - max_length: maximum number of tokens in each sequence
+        self.max_length = max_length
+        self.token_to_index = {}
+        self.index_to_token = []
+        self.special_tokens = ['<EMPTY>', '<BEGIN>', '<EOS>', '<UNKNOWN>']
+        for token in self.special_tokens:
+            self.token_to_index[token] = len(self.index_to_token)
+            self.index_to_token.append(token)
+        for s in texts:
+            tokens = self.tokenize(text=s, init=True)
+            for token in tokens:
+                if token not in self.index_to_token:
+                    self.token_to_index[token] = len(self.index_to_token)
+                    self.index_to_token.append(token)
+        self.num_tokens = len(self.index_to_token) # the vocabulary size
+
+    def tokenize(self, text : str, init : bool = False):
+        # convert each character to a token
+        tokens = []
+        if init:
+            for c in text: tokens.append(c)
+        else:
+            tokens.append('<BEGIN>') # begin of a sequence
+            valid_tokens = self.tokenize(text=text, init=True)
+            tokens = tokens + valid_tokens
+            tokens.append('<EOS>') # end of a sequence
+            while len(tokens) < self.max_length:
+                tokens.append('<EMPTY>') # add empty padding to extend to maximum length
+            tokens = tokens[:self.max_length] # trim-off the exceeding part
+        return tokens
+
+    def get_indices(self, text : str):
+        # give a text string, get the indices of tokens
+        indices = []
+        for token in self.tokenize(text=text):
+            indices.append(self.token_to_index[token])
+        return indices
+    
+    def get_tokens(self, indices : list):
+        # given a list of indices, return the list of tokens
+        tokens = []
+        for idx in indices:
+            if idx >=0 and idx < self.num_tokens:
+                tokens.append(self.index_to_token[idx])
+            else:
+                tokens.append('<UNKNOWN>') # unknown/invalid token
+        return tokens
+
+    def get_text_from_tokens(self, tokens : list):
+        # given a list of tokens, return the text
+        text = ''
+        for token in tokens:
+            if token == '<BEGIN>':
+                pass
+            elif token in ['<EMPTY>', '<UNKNOWN>']:
+                pass
+            elif token == '<EOS>':
+                break
+            else:
+                text += token
+        return text
