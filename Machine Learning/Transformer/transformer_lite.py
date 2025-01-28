@@ -42,7 +42,8 @@ class MultiHeadAttention(nn.Module):
         QK = Q @ KT / math.sqrt(Q.shape[-1]) # QK / sqrt(D)       [N, L, L]
         if mask_2d is not None:
             # mask out positions by setting them to a very large negative value
-            QK = QK.masked_fill(mask_2d == 0, float('-inf'))
+            #QK = QK.masked_fill(mask_2d == 0, float('-inf'))
+            QK = QK.masked_fill(mask_2d == 0, float(0))
         A = torch.softmax(QK, dim=-1)        # attention weights  [N, L, L]
         return A @ V, A
 

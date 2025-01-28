@@ -59,6 +59,7 @@ def generate_mask(mask):
         mask_2d[b, :, zero_indices] = 0  # mask out columns
     return mask_2d
 
+
 class SimpleTokenizer:
     """
     Each character will be converted to a token
