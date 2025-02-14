@@ -29,6 +29,7 @@ tree -d -L 2  # only display directories with maximum depth of 2
  │   ├── PCA - Principle Component Analysis
  │   ├── QL - Q Learning
  │   └── VAE - Variational Autoencoder
+ │   └── Transformer
  ├── Mathematics
  │   ├── DFT - Discrete Fourier Transform
  │   └── Jacobi Method - Find Eigenvectors and Eigenvalues
