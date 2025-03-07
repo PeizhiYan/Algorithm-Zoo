@@ -120,7 +120,8 @@ class EncoderBlock(nn.Module):
         super(EncoderBlock, self).__init__()
         self.attn = MultiHeadAttention(dim, num_heads) # multi-head attention block
         self.ffn = FeedForwardNetwork(dim, hidden_dim) # feed-forward network
-        self.layer_norm = nn.LayerNorm(normalized_shape=[dim], eps=1e-6) # layer normalization on the last dimension
+        self.ln1 = nn.LayerNorm(normalized_shape=[dim], eps=1e-6) # layer normalization on the last dimension
+        self.ln2 = nn.LayerNorm(normalized_shape=[dim], eps=1e-6) # layer normalization on the last dimension
 
     def forward(self, X):
         """
@@ -132,16 +133,16 @@ class EncoderBlock(nn.Module):
         # self-attention
         Z = self.attn(Xq=X, Xk=X, Xv=X) # [N, L, D]
 
-        # add & norm
+        # add & layer norm
         Z = Z + X                       # [N, L, D]
-        Z = self.layer_norm(Z)
+        Z = self.ln1(Z)
 
         # feed-forward network
         output = self.ffn(Z)
 
-        # add & norm
+        # add & layer norm
         output = output + Z
-        output = self.layer_norm(output)
+        output = self.ln2(output)
 
         return output
 
@@ -158,7 +159,9 @@ class DecoderBlock(nn.Module):
         self.self_attn = MultiHeadAttention(dim, num_heads)  # multi-head attention block for self attention
         self.cross_attn = MultiHeadAttention(dim, num_heads) # multi-head attention block for cross attention
         self.ffn = FeedForwardNetwork(dim, hidden_dim) # feed-forward network
-        self.layer_norm = nn.LayerNorm(normalized_shape=[dim], eps=1e-6) # layer normalization on the last dimension
+        self.ln1 = nn.LayerNorm(normalized_shape=[dim], eps=1e-6) # layer normalization on the last dimension
+        self.ln2 = nn.LayerNorm(normalized_shape=[dim], eps=1e-6) # layer normalization on the last dimension
+        self.ln3 = nn.LayerNorm(normalized_shape=[dim], eps=1e-6) # layer normalization on the last dimension
 
     def forward(self, Y, Z, mask_2d):
         """
@@ -172,23 +175,23 @@ class DecoderBlock(nn.Module):
         # masked self-attention
         Y_attn = self.self_attn(Xq=Y, Xk=Y, Xv=Y, mask_2d=mask_2d) # [N, L, D]
 
-        # add & norm
+        # add & layer norm
         Y_attn = Y_attn + Y                # [N, L, D]
-        Y_attn = self.layer_norm(Y_attn)
+        Y_attn = self.ln1(Y_attn)
 
         # cross-attention (key and value from encoder, query from decoder)
         Z_attn = self.cross_attn(Xq=Y_attn, Xk=Z, Xv=Z)  # [N, L, D]
 
-        # add & norm
+        # add & layer norm
         Z_attn = Z_attn + Y_attn           # [N, L, D]
-        Z_attn = self.layer_norm(Z_attn)
+        Z_attn = self.ln2(Z_attn)
 
         # feed-forward network
         output = self.ffn(Z_attn)
 
-        # add & norm
+        # add & layer norm
         output = output + Z_attn
-        output = self.layer_norm(output)
+        output = self.ln3(output)
 
         return output
 
