@@ -9,7 +9,7 @@ import math
 import numpy as np
 
 class PositionalEncoding(nn.Module):
-    def __init__(self, max_length=5000, dim=256):
+    def __init__(self, max_length=5000, dim=256, device='cpu'):
         """
         Inputs:
             - max_length: the maximum length of the input tensor [N, L, D], (L <= max_length)
@@ -21,9 +21,9 @@ class PositionalEncoding(nn.Module):
         super(PositionalEncoding, self).__init__()
         self.max_length = max_length
         self.dim = dim
-        PE = torch.zeros(max_length, dim) # [max_length, D]
-        positions = torch.arange(start=0, end=max_length, step=1, dtype=torch.float32).unsqueeze(1)    # [max_length, 1]
-        dividors = torch.pow(10000, torch.arange(start=0, end=dim, step=2, dtype=torch.float32) / dim) # [D//2]
+        PE = torch.zeros(max_length, dim).to(device) # [max_length, D]
+        positions = torch.arange(start=0, end=max_length, step=1, dtype=torch.float32).unsqueeze(1).to(device)    # [max_length, 1]
+        dividors = torch.pow(10000, torch.arange(start=0, end=dim, step=2, dtype=torch.float32) / dim).to(device) # [D//2]
         #dividors = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model)) # this is mathematically equivalent
         PE[:, 0::2] = torch.sin(positions / dividors) # for even dimensions
         PE[:, 1::2] = torch.cos(positions / dividors) # for odd dimensions

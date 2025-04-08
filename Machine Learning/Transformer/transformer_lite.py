@@ -88,7 +88,7 @@ class MultiHeadAttention(nn.Module):
 
 
 class FeedForwardNetwork(nn.Module):
-    """Feed-Forward Neural Network"""
+    """Feed-Forward Neural Network / MLP"""
     def __init__(self, dim=256, hidden_dim=512):
         """
         Inputs:
@@ -268,3 +268,95 @@ class Transformer(nn.Module):
 
         return output
 
+
+class GPTBlock(nn.Module):
+    """GPT Decoder Block"""
+    def __init__(self, dim=256, num_heads=8):
+        """
+        - dim: the embedded token dimension (D)
+        - num_heads: the number of attention heads
+        """
+        super().__init__()
+        self.self_attn = MultiHeadAttention(dim, num_heads)  # multi-head attention block for self attention
+        self.ln1 = nn.LayerNorm(normalized_shape=[dim], eps=1e-6) # layer normalization on the last dimension
+        self.ln2 = nn.LayerNorm(normalized_shape=[dim], eps=1e-6) # layer normalization on the last dimension
+        self.ffn = FeedForwardNetwork(dim, dim) # feed-forward network
+
+    def forward(self, Y, mask_2d):
+        """
+        Inputs:
+            - Y: decoder's previous output [N, L, D]
+            - mask_2d: [N, L, L]  uint8  (0,1)
+        Outputs:
+            - output: the output tensor    [N, L, D]
+        """
+
+        # layer norm
+        Y_ = self.ln1(Y)                   # [N, L, D]
+
+        # masked self-attention & add
+        Y_attn = Y + self.self_attn(Xq=Y_, Xk=Y_, Xv=Y_, mask_2d=mask_2d) # [N, L, D]
+
+        # layer norm
+        Y_attn_ = self.ln2(Y_attn)          # [N, L, D]
+
+        # mlp & add
+        output = Y_attn + self.ffn(Y_attn_) # [N, L, D]
+
+        return output
+
+
+class GPT(nn.Module):
+    """GPT Network"""
+    def __init__(self, dim=256, num_heads=8, num_blocks=6, 
+                       max_length=1000, vocabulary_size=5000):
+        """
+        - dim: the embedded token dimension (D)
+        - num_heads: the number of attention heads
+        - num_blocks: the number of encoder/decoder blocks
+        - max_length: the maximum sequence length (number of tokens)
+        """
+        super().__init__()
+        # register hyperparameters
+        self.dim = dim
+        self.num_heads = num_heads
+        self.num_blocks = num_blocks
+        self.max_length = max_length
+        self.vocabulary_size = vocabulary_size
+        
+        # positional encoding module
+        self.positional_encoding = PositionalEncoding(max_length, dim)
+        # transformer decoder blocks
+        self.decoder_blocks = nn.ModuleList(
+            [GPTBlock(dim=dim, num_heads=num_heads) for _ in range(num_blocks)]
+        )
+        # output layer for token generation
+        self.output_layer = nn.Linear(dim, self.vocabulary_size, bias=True)
+        # initialize weights
+        self.apply(self._init_weights)
+
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+
+    def decode(self, Y, mask):
+        """
+        Inputs:
+            - Y: decoder's previous output [N, L, D]
+            - mask: [N, L]  uint8  (0,1)  the input token mask
+        Outputs:
+            - output: output sequences of decoded logits [N, L, D] 
+        """
+        # generate attention masks
+        mask_2d = generate_mask(mask)
+        # apply positional encoding
+        output = Y + self.positional_encoding(Y)
+        # pass through decoder blocks
+        for decoder_block in self.decoder_blocks:
+            output = decoder_block(Y=output, mask_2d=mask_2d)
+        return output # logits
+    
