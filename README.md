@@ -23,13 +23,14 @@ tree -d -L 2  # only display directories with maximum depth of 2
  │   ├── PCA Image Compression
  │   └── Shift and Sum Multi-Camera Refocusing
  ├── Machine Learning
+ │   ├── BP - Gradient Descent and Backpropagation
+ │   ├── DDPM - Denoising Diffusion Probabilistic Models
  │   ├── GAN - Generative Adversial network Vanilla Version
  │   ├── GCN - Graph Concolutional Network
- │   ├── Gradient Descent and Backpropagation
+ │   ├── GPT - Generative Pretrained Transformer
  │   ├── PCA - Principle Component Analysis
  │   ├── QL - Q Learning
  │   └── VAE - Variational Autoencoder
- │   └── Transformer
  ├── Mathematics
  │   ├── DFT - Discrete Fourier Transform
  │   └── Jacobi Method - Find Eigenvectors and Eigenvalues
