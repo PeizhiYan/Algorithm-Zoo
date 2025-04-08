@@ -41,24 +41,44 @@ class PositionalEncoding(nn.Module):
         return x + self.PE[:L, :].unsqueeze(0).expand(N, L, D)
 
 
+# @torch.no_grad()
+# def generate_mask(mask):
+#     """Generate the mask used in next token generation tasks
+#     Inputs:
+#         - mask: [N, L]  uint8  (0,1)  the input token mask
+#     Outputs:
+#         - the output mask tensor [N, L, L]  uint8 (0,1)
+#     """
+#     batch_size = mask.shape[0]
+#     seq_length = mask.shape[1]
+#     mask_2d = torch.ones([batch_size, seq_length, seq_length], dtype=torch.float32).to(mask.device)
+#     for b in range(batch_size):
+#         zero_indices = (mask[b] == 0).nonzero(as_tuple=True)[0]  # Indices where mask[b] == 0
+#         mask_2d[b] = torch.tril(mask_2d[b], diagonal=0)
+#         mask_2d[b, zero_indices, :] = 0  # mask out rows
+#         mask_2d[b, :, zero_indices] = 0  # mask out columns
+#     return mask_2d
+
 @torch.no_grad()
 def generate_mask(mask):
-    """Generate the mask used in next token generation tasks
-    Inputs:
-        - mask: [N, L]  uint8  (0,1)  the input token mask
-    Outputs:
-        - the output mask tensor [N, L, L]  uint8 (0,1)
     """
-    batch_size = mask.shape[0]
-    seq_length = mask.shape[1]
-    mask_2d = torch.ones([batch_size, seq_length, seq_length], dtype=torch.float32).to(mask.device)
-    for b in range(batch_size):
-        zero_indices = (mask[b] == 0).nonzero(as_tuple=True)[0]  # Indices where mask[b] == 0
-        mask_2d[b] = torch.tril(mask_2d[b], diagonal=0)
-        mask_2d[b, zero_indices, :] = 0  # mask out rows
-        mask_2d[b, :, zero_indices] = 0  # mask out columns
-    return mask_2d
+    Generate a causal + padding mask for GPT-style autoregressive decoding.
+    Inputs:
+        - mask: [N, L]  uint8 or bool (0/1)  where 0 = pad, 1 = valid token
+    Outputs:
+        - mask_2d: [N, L, L]  bool tensor, where True = keep, False = mask out
+    """
+    N, L = mask.size()
 
+    # Causal mask: [1, L, L]
+    causal = torch.tril(torch.ones(L, L, device=mask.device, dtype=torch.bool)).unsqueeze(0)  # [1, L, L]
+    # Padding mask: [N, 1, L] (keys) AND [N, L, 1] (queries)
+    mask = mask.to(torch.bool)  # ensure correct type
+    mask_q = mask.unsqueeze(2)  # [N, L, 1]
+    mask_k = mask.unsqueeze(1)  # [N, 1, L]
+    # Combine: only allow attend if (causal AND not padding)
+    mask_2d = causal & mask_q & mask_k  # [N, L, L]
+    return mask_2d
 
 class SimpleTokenizer:
     """

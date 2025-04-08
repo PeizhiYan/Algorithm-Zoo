@@ -42,8 +42,8 @@ class MultiHeadAttention(nn.Module):
         QK = Q @ KT / math.sqrt(Q.shape[-1]) # QK / sqrt(D)       [N, L, L]
         if mask_2d is not None:
             # mask out positions by setting them to a very large negative value
-            #QK = QK.masked_fill(mask_2d == 0, float('-inf'))
-            QK = QK.masked_fill(mask_2d == 0, float(0))
+            QK = QK.masked_fill(mask_2d == 0, float('-inf'))
+            #QK = QK.masked_fill(mask_2d == 0, float(0))
         A = torch.softmax(QK, dim=-1)        # attention weights  [N, L, L]
         return A @ V, A
 
@@ -71,7 +71,7 @@ class MultiHeadAttention(nn.Module):
             Qh = Q[:,:,h*self.dim_k:(h+1)*self.dim_k]     # [N, L, Dk]
             Kh = K[:,:,h*self.dim_k:(h+1)*self.dim_k]     # [N, L, Dk]
             Vh = V[:,:,h*self.dim_v:(h+1)*self.dim_v]     # [N, L, Dv]
-            Oh, Ah = self.attention(Qh, Kh, Vh, mask_2d)  # [N, L, Dv], [N, L, L] 
+            Oh, Ah = self.attention(Qh, Kh, Vh, mask_2d)  # [N, L, Dv], [N, L, L]
             attn_weights.append(Ah)
             attn_outputs.append(Oh)
 
@@ -309,7 +309,7 @@ class GPTBlock(nn.Module):
 class GPT(nn.Module):
     """GPT Network"""
     def __init__(self, dim=256, num_heads=8, num_blocks=6, 
-                       max_length=1000, vocabulary_size=5000):
+                       max_length=1000, vocabulary_size=5000, device='cpu'):
         """
         - dim: the embedded token dimension (D)
         - num_heads: the number of attention heads
@@ -325,7 +325,7 @@ class GPT(nn.Module):
         self.vocabulary_size = vocabulary_size
         
         # positional encoding module
-        self.positional_encoding = PositionalEncoding(max_length, dim)
+        self.positional_encoding = PositionalEncoding(max_length, dim, device)
         # transformer decoder blocks
         self.decoder_blocks = nn.ModuleList(
             [GPTBlock(dim=dim, num_heads=num_heads) for _ in range(num_blocks)]
@@ -334,6 +334,9 @@ class GPT(nn.Module):
         self.output_layer = nn.Linear(dim, self.vocabulary_size, bias=True)
         # initialize weights
         self.apply(self._init_weights)
+        # register device
+        self.device = device
+        self.to(device)
 
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
@@ -349,7 +352,7 @@ class GPT(nn.Module):
             - Y: decoder's previous output [N, L, D]
             - mask: [N, L]  uint8  (0,1)  the input token mask
         Outputs:
-            - output: output sequences of decoded logits [N, L, D] 
+            - logits: output sequences of decoded logits [N, L, V] 
         """
         # generate attention masks
         mask_2d = generate_mask(mask)
@@ -358,5 +361,7 @@ class GPT(nn.Module):
         # pass through decoder blocks
         for decoder_block in self.decoder_blocks:
             output = decoder_block(Y=output, mask_2d=mask_2d)
-        return output # logits
+        # output layer
+        logits = self.output_layer(output) # [N, L, V]
+        return logits
     
