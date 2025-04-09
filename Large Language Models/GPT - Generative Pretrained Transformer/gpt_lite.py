@@ -4,6 +4,7 @@ Copyright 2025. Peizhi Yan
 """
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import math
 import numpy as np
 
@@ -144,12 +145,15 @@ class GPTBlock(nn.Module):
 class GPT(nn.Module):
     """GPT Network"""
     def __init__(self, dim=256, num_heads=8, num_blocks=6, 
-                       max_length=1000, vocabulary_size=5000, device='cpu'):
+                       max_length=1000, vocabulary_size=5000, padding_idx=-1, 
+                       device='cpu'):
         """
         - dim: the embedded token dimension (D)
         - num_heads: the number of attention heads
         - num_blocks: the number of encoder/decoder blocks
         - max_length: the maximum sequence length (L_max)
+        - vocabulary_size: the size of the vocabulary (V)
+        - padding_idx: the index of the padding token, in our case, the <EMPTY> token
         """
         super().__init__()
         # register hyperparameters
@@ -158,7 +162,14 @@ class GPT(nn.Module):
         self.num_blocks = num_blocks
         self.max_length = max_length
         self.vocabulary_size = vocabulary_size
+        self.padding_idx = padding_idx
+
+        # register the lower-triangle mask
+        self.register_buffer('tril', torch.tril(torch.ones(max_length, max_length)))
         
+        # embedding layer for input tokens
+        self.token_embeder = torch.nn.Embedding(num_embeddings=vocabulary_size, embedding_dim=dim, 
+                                                padding_idx=padding_idx, device=device)
         # positional encoding module
         self.positional_encoding = PositionalEncoding(max_length, dim, device)
         # transformer decoder blocks
@@ -181,20 +192,59 @@ class GPT(nn.Module):
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def decode(self, x, mask_2d):
+    def decode(self, x):
         """
         Inputs:
-            - x: decoder's previous output [N, L, D]  (L <= L_max)
-            - mask_2d: [N, L, L]  uint8  (0,1)  the lower-triangle casual mask
+            # - x: decoder's previous output [N, L, D]  (L <= L_max)
+            - x: input tensor [N, L]  torch.long  (0,1)  the token indices
+            # - mask_2d: [N, L, L]  uint8  (0,1)  the lower-triangle casual mask
         Outputs:
             - logits: output sequences of decoded logits [N, L, V]
         """
+        N, L = x.shape
+        # embedding layer
+        x = self.token_embeder(x)           # [N, L, D]
         # apply positional encoding
         x = x + self.positional_encoding(x)
-        # pass through decoder blocks
+        # pass through the decoder blocks
         for gpt_block in self.gpt_blocks:
-            x = gpt_block(x=x, mask_2d=mask_2d)
+            x = gpt_block(x=x, mask_2d=self.tril[:L, :L])
         # output layer
-        logits = self.output_layer(x) # [N, L, V]
+        logits = self.output_layer(x)      # [N, L, V]
         return logits
     
+    @torch.no_grad()
+    def generate(self, tokenizer, context=None, generate_length=100, narrate=True):
+        """
+        Generate text using the GPT model
+        Inputs:
+            - tokenizer: the tokenizer object
+            - context: the input sequence [N, T]  torch.long  (0,1)  the token indices, we just assume N=1
+            - generate_length: the number of tokens to generate         
+            - narrate: whether to print the generated tokens
+        Outputs:
+            - generated_tokens: the generated tokens [N, T]  torch.long  (0,1)  the token indices
+        """
+        if generate_length > self.max_length:
+            print(f"Warning: the maximum length is {self.max_length}.")
+            generate_length = self.max_length
+        if context is None:
+            context = torch.ones((1, 1), dtype=torch.long, device=self.device)
+        for _ in range(generate_length):
+            # crop idx to the last block_size tokens
+            idx_cond = context[:, -self.max_length:] # [N, T]
+            # get the predictions
+            logits = self.decode(idx_cond)           # [N, L, V] (V = vocabulary size)
+            # focus only on the last time step
+            logits = logits[:, -1, :]                # [N, V]
+            # apply softmax to get probabilities
+            probs = F.softmax(logits, dim=-1)        # [N, V]
+            # sample from the distribution (this ensures diversity of generation)
+            idx_next = torch.multinomial(probs, num_samples=1)  # [N, 1]
+            # append sampled index to the running sequence
+            context = torch.cat((context, idx_next), dim=1)     # [N, T+1]
+            generated_token_indices = context[0, :].cpu().numpy()      # [T+1] list object
+            if narrate:
+                print(f"\r", "".join(tokenizer.get_tokens(generated_token_indices)), end='', flush=True)
+        return generated_token_indices
+
