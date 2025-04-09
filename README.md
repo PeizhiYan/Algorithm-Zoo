@@ -6,11 +6,11 @@
 
 ### Repo Structure
 
-~~~bash
+```bash
 tree -d -L 2  # only display directories with maximum depth of 2
-~~~
+```
 
-~~~
+```
  .
  ├── Computer Graphics
  │   ├── Basics
@@ -27,19 +27,15 @@ tree -d -L 2  # only display directories with maximum depth of 2
  │   ├── DDPM - Denoising Diffusion Probabilistic Models
  │   ├── GAN - Generative Adversial network Vanilla Version
  │   ├── GCN - Graph Concolutional Network
- │   ├── GPT - Generative Pretrained Transformer
  │   ├── PCA - Principle Component Analysis
  │   ├── QL - Q Learning
  │   └── VAE - Variational Autoencoder
+ ├── Large Language Models
+ │   ├── GPT - Generative Pretrained Transformer
  ├── Mathematics
  │   ├── DFT - Discrete Fourier Transform
  │   └── Jacobi Method - Find Eigenvectors and Eigenvalues
  └── Sorting Algorithms
      ├── Mergesort
      └── Quicksort
-~~~
-
-
-
-
-
+```

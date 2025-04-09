@@ -1,5 +1,5 @@
 """
-Utility functions for Transformer model
+Utility functions for GPT model
 Copyright 2025. Peizhi Yan
 """
 
@@ -12,7 +12,7 @@ class PositionalEncoding(nn.Module):
     def __init__(self, max_length=5000, dim=256, device='cpu'):
         """
         Inputs:
-            - max_length: the maximum length of the input tensor [N, L, D], (L <= max_length)
+            - max_length: the maximum length of the input tensor [N, L, D], (L <= L_max)
             - dim: the dimension D of the input tensor [N, L, D]
         Formula:
             PE(pos, 2i)   = sin(pos / 10000^(2i / D))
@@ -34,7 +34,7 @@ class PositionalEncoding(nn.Module):
         Add positional encoding to the input tensor
         ------------------------------------------
         Inputs:
-            - x: the input tensor [N, L, D]
+            - x: the input tensor [N, L, D]    (L is the actual length of the input sequence)
         """
         assert x.shape[1] <= self.max_length
         N, L, D = x.shape
@@ -43,42 +43,24 @@ class PositionalEncoding(nn.Module):
 
 # @torch.no_grad()
 # def generate_mask(mask):
-#     """Generate the mask used in next token generation tasks
-#     Inputs:
-#         - mask: [N, L]  uint8  (0,1)  the input token mask
-#     Outputs:
-#         - the output mask tensor [N, L, L]  uint8 (0,1)
 #     """
-#     batch_size = mask.shape[0]
-#     seq_length = mask.shape[1]
-#     mask_2d = torch.ones([batch_size, seq_length, seq_length], dtype=torch.float32).to(mask.device)
-#     for b in range(batch_size):
-#         zero_indices = (mask[b] == 0).nonzero(as_tuple=True)[0]  # Indices where mask[b] == 0
-#         mask_2d[b] = torch.tril(mask_2d[b], diagonal=0)
-#         mask_2d[b, zero_indices, :] = 0  # mask out rows
-#         mask_2d[b, :, zero_indices] = 0  # mask out columns
+#     Generate a causal + padding mask for GPT-style autoregressive decoding.
+#     Inputs:
+#         - mask: [N, L]  uint8 or bool (0/1)  where 0 = pad, 1 = valid token
+#     Outputs:
+#         - mask_2d: [N, L, L]  bool tensor, where True = keep, False = mask out
+#     """
+#     N, L = mask.size()
+
+#     # Causal mask: [1, L, L]
+#     causal = torch.tril(torch.ones(L, L, device=mask.device, dtype=torch.bool)).unsqueeze(0)  # [1, L, L]
+#     # Padding mask: [N, 1, L] (keys) AND [N, L, 1] (queries)
+#     mask = mask.to(torch.bool)  # ensure correct type
+#     mask_q = mask.unsqueeze(2)  # [N, L, 1]
+#     mask_k = mask.unsqueeze(1)  # [N, 1, L]
+#     # Combine: only allow attend if (causal AND not padding)
+#     mask_2d = causal & mask_q & mask_k  # [N, L, L]
 #     return mask_2d
-
-@torch.no_grad()
-def generate_mask(mask):
-    """
-    Generate a causal + padding mask for GPT-style autoregressive decoding.
-    Inputs:
-        - mask: [N, L]  uint8 or bool (0/1)  where 0 = pad, 1 = valid token
-    Outputs:
-        - mask_2d: [N, L, L]  bool tensor, where True = keep, False = mask out
-    """
-    N, L = mask.size()
-
-    # Causal mask: [1, L, L]
-    causal = torch.tril(torch.ones(L, L, device=mask.device, dtype=torch.bool)).unsqueeze(0)  # [1, L, L]
-    # Padding mask: [N, 1, L] (keys) AND [N, L, 1] (queries)
-    mask = mask.to(torch.bool)  # ensure correct type
-    mask_q = mask.unsqueeze(2)  # [N, L, 1]
-    mask_k = mask.unsqueeze(1)  # [N, 1, L]
-    # Combine: only allow attend if (causal AND not padding)
-    mask_2d = causal & mask_q & mask_k  # [N, L, L]
-    return mask_2d
 
 class SimpleTokenizer:
     """
@@ -114,13 +96,13 @@ class SimpleTokenizer:
             tokens.append('<EOS>') # end of a sequence
             while len(tokens) < self.max_length:
                 tokens.append('<EMPTY>') # add empty padding to extend to maximum length
-            tokens = tokens[:self.max_length] # trim-off the exceeding part
+            #tokens = tokens[:self.max_length] # trim-off the exceeding part
         return tokens
 
     def get_indices(self, text : str):
         # give a text string, get the indices of tokens
         indices = []
-        for token in self.tokenize(text=text):
+        for token in self.tokenize(text=text, init=True):
             indices.append(self.token_to_index[token])
         return indices
     
